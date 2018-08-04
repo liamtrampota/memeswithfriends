@@ -1,0 +1,5 @@
+styles = {
+  memePage : {
+    display: flex
+  }
+}
