@@ -8,7 +8,7 @@ export default class App extends React.Component {
     super(props);
     this.socket = io('http://10.2.102.244:3000/');
     this.state = {
-      username: 'Li',
+      username: 'Li'+"Min"+((new Date()).toISOString().slice(14,19).replace(/:/g,"_"))+"RAND"+String(Math.floor(Math.random()*100000)),
       usernameSubmit: false
     }
   }
@@ -54,12 +54,15 @@ class Game extends React.Component {
       opponents: [],
       score: 0,
       concept: 'That face when your code works',
-      turnMode:'Player' //player, judge, between
+      turnMode:'', //player, judge, between, winner
+      winners: '',
+      winningImage: '',
+      winningJudge: '',
     }
   }
 
   componentDidMount(){
-    console.log(this.state.opponents)
+    console.log('opponents:', this.state.opponents)
     this.props.socket.emit('join', this.props.username)
     this.props.socket.on('join', (data)=>{
       console.log('join data', data);
@@ -71,9 +74,15 @@ class Game extends React.Component {
           opponents.push(username)
         }
       })
-      this.setState({opponents:opponents, deck:data.cards})
+      var role;
+      if(this.props.username === data.judge){
+        role='Judge'
+      } else {
+        role='Player'
+      }
+      this.setState({opponents:opponents, deck:data.cards, turnMode:role})
     })
-    this.props.socket.on('newCard', (data) => {
+    this.props.socket.on('cardRequested', (data) => {
       console.log('new card: ', data)
       this.setState({deck:this.state.deck.concat(data)})
     })
@@ -82,6 +91,12 @@ class Game extends React.Component {
       var newOpponents = this.state.opponents.slice()
       this.setState({opponents:newOpponents.concat(data)})
     })
+    this.props.socket.on('usersWon', (data)=>{
+      console.log('users won', data)
+      this.setState({turnMode:'Winner', winners:data.winners, winningImage:data.image, winningJudge:data.judge})
+    })
+
+
     // on concept: receive current concept
     console.log('Entered Game')
   }
@@ -111,7 +126,7 @@ class Game extends React.Component {
           <Player socket={this.props.socket} deck={this.state.deck} concept={this.state.concept} setBetween={()=>this.setBetween()}/>
         </View>
       )
-    } else {
+    } else if(this.state.turnMode==='Judge') {
       return (
         <View style={styles.container}>
           <View style={{marginTop:30, display:'flex', flexDirection:'row', justifyContent:'space-around'}}>
@@ -121,7 +136,50 @@ class Game extends React.Component {
           <Judge socket={this.props.socket} concept={this.state.concept} expectedSubmits={this.state.opponents.length}/>
         </View>
       )
+    } else if(this.state.turnMode==="Winner"){
+      return (
+        <View style={styles.container}>
+          <View style={{marginTop:30, display:'flex', flexDirection:'row', justifyContent:'space-around'}}>
+            <Text>Score: </Text>
+            <Text>Round: </Text>
+          </View>
+          <Winner socket={this.props.socket} concept={this.state.concept}
+          winners={this.state.winners} winningImage={this.state.winningImage} judge={this.state.winningJudge}/>
+      </View>
+    )
+    } else {
+      return (
+        <View style={{flex:1, display:'flex', justifyContent:'center', alignItems:'center'}}>
+          <Text>Loading</Text>
+        </View>
+      )
     }
+  }
+}
+
+class Winner extends React.Component {
+  constructor(props){
+    super(props)
+  }
+
+  render(){
+    return (
+      <View style={{flex: 1, backgroundColor: '#fff', alignItems: 'center', justifyContent:'space-between'}}>
+        <View>
+          <Text style={{fontSize:20}}>
+            Judge {this.props.judge} chose {this.props.winners[0]}'s {this.props.winners.length===0 ? null : "+ more" } meme!
+          </Text>
+        </View>
+        <View style={{height:'60%', marginBottom:0, marginTop:10}}>
+          <Text style={{fontSize:20}}>
+            {this.props.concept}
+          </Text>
+          <Image source={{uri:this.props.winningImage}} style={{height:150, width:150}}/>
+        </View>
+        <Button onPress={()=>this.props.nextRound()} title="Next Round!">
+        </Button>
+      </View>
+    )
   }
 }
 
@@ -130,8 +188,8 @@ class Between extends React.Component {
     super(props);
     this.state = {
       cardsPlayed: [],
-      winner: false,
-      winningCard: 'https://png.pngtree.com/svg/20170524/anonymous_689740.png'
+      isWinnerChosen: false,
+      winningCard: ''
     }
   }
 
@@ -139,15 +197,16 @@ class Between extends React.Component {
     this.props.socket.emit('between')
     this.props.socket.on('between', (data) => {
       console.log(data)
-      this.setState({cardsPlayed: data})
+      var cardsPlayed = []
+      data.forEach(function(item){
+        cardsPlayed.push(item.image)
+      })
+      this.setState({cardsPlayed: cardsPlayed})
     })
     //on between: expect past played cards
     this.props.socket.on('cardPlayed', (data) => {
-      console.count("SOCKETON-CARDPLAYED");
       console.log(data);
-      console.log(this.state.cardsPlayed.concat(data))
-      var cardsPlayed = this.state.cardsPlayed.slice()
-      this.setState({cardsPlayed: this.state.cardsPlayed.concat(data)})
+      this.setState({cardsPlayed: this.state.cardsPlayed.concat(data.image)})
     })
     //on cardPlayed: expect new played card
     //on winnerChosen
@@ -155,8 +214,10 @@ class Between extends React.Component {
   }
 
   winnerSelected(img){
-    this.setState({winningCard: img, winner:true})
+    this.setState({winningCard: img, isWinnerChosen:true})
   }
+
+
 
   render() {
     return (
@@ -190,8 +251,9 @@ class Player extends React.Component {
       [
         {text: 'Cancel', onPress: () => console.log('Cancel Pressed'), style: 'cancel'},
         {text: 'Confirm', onPress: () => {console.log('Confirm Pressed')
-                                        this.props.socket.emit('playCard', img) //???
-                                        this.props.setBetween()}},
+                                        this.props.socket.emit('playCard', img)
+                                        this.props.setBetween()
+                                        this.props.socket.emit('requestCard')}},
       ],
       { cancelable: true }
     )
@@ -226,13 +288,16 @@ class Judge extends React.Component {
   constructor(props){
     super(props);
     this.state = {
-      submissions: ['https://imgflip.com/s/meme/Black-Girl-Wat.jpg', 'https://imgflip.com/s/meme/Roll-Safe-Think-About-It.jpg', 'https://i.kym-cdn.com/entries/icons/original/000/016/546/hidethepainharold.jpg']
+      submissions: [],
     }
   }
 
   componentDidMount(){
-    //emit Judge
-    //on newSubmission
+    this.props.socket.on('cardPlayed', (data) => {
+      console.log("new submission");
+      console.log(data)
+      this.setState({submissions: this.state.submissions.concat(data.image)})
+    })
   }
 
   selectImage(img){
@@ -242,7 +307,8 @@ class Judge extends React.Component {
       'Are you sure about this meme?',
       [
         {text: 'Cancel', onPress: () => console.log('Cancel Pressed'), style: 'cancel'},
-        {text: 'Confirm', onPress: () => console.log('Confirm Pressed')},
+        {text: 'Confirm', onPress: () => {console.log('Confirm Pressed')
+                                          this.props.socket.emit('winner', img.image)}},
       ],
       { cancelable: true }
     )
@@ -284,7 +350,7 @@ class Judge extends React.Component {
             Submissions
           </Text>
           <Text style={{fontSize:20, textAlign:'center'}}>
-            Still waiting for {ths.props.expectedSubmits - this.state.submissions.length} submissions.
+            Still waiting for {this.props.expectedSubmits - this.state.submissions.length} submissions.
           </Text>
           <ImageSlider images={this.state.submissions} />
         </View>
