@@ -6,9 +6,9 @@ import io from 'socket.io-client';
 export default class App extends React.Component {
   constructor(props){
     super(props);
-    this.socket = io('http://10.2.102.244:3000/');
+    this.socket = io('https://damp-eyrie-10512.herokuapp.com/'); //'https://damp-eyrie-10512.herokuapp.com/'
     this.state = {
-      username:'',
+      username:'', //>>>
       // 'Li'+"Min"+((new Date()).toISOString().slice(14,19).replace(/:/g,"_"))+"RAND"+String(Math.floor(Math.random()*100000)),
       usernameSubmit: false
     }
@@ -55,14 +55,13 @@ class Game extends React.Component {
   constructor(props){
     super(props)
     this.state = {
-      // deck:["https://storage.googleapis.com/memes_with_friends/39.jpeg", "https://storage.googleapis.com/memes_with_friends/11.jpeg", "https://storage.googleapis.com/memes_with_friends/1.jpeg", "https://storage.googleapis.com/memes_with_friends/4.jpeg", "https://storage.googleapis.com/memes_with_friends/8.jpeg", "https://storage.googleapis.com/memes_with_friends/42.jpeg"],
       deck:[],
       opponents: [],
       myScore: 0,
       allScores: [],
-      concept: '',
-      turnMode:'', //player, judge, between, winner
-      winners: '',
+      concept: '', //>>>
+      turnMode:'Between', //player, judge, between, winner
+      winners: [''],
       winningImage: '',
       winningJudge: '',
       round: 1
@@ -104,7 +103,7 @@ class Game extends React.Component {
     })
     this.props.socket.on('cardRequested', (img) => {
       console.log('new card: ', img)
-      // var cards = this.state.deck.concat(img)
+      var cards = this.state.deck.concat(img)
       var cards = [img].concat(this.state.deck)
       console.log('cards', cards)
       var uniqueCards = cards.filter(function(item, pos, self) {
@@ -214,6 +213,10 @@ class Game extends React.Component {
 class Winner extends React.Component {
   constructor(props){
     super(props);
+    const ds = new ListView.DataSource({rowHasChanged: (r1, r2) => r1 !== r2});
+    this.state = {
+      dataSource: ds.cloneWithRows(this.props.allScores),
+    }
   }
 
   render(){
@@ -237,28 +240,43 @@ class Winner extends React.Component {
     // )
     console.log('winning render:', this.props)
     return (
-      <View style={{flex: 1, backgroundColor: '#fff', alignItems: 'center', justifyContent:'space-between', display:'flex', marginTop:30}}>
-        <View style={{flex: 1}}>
-          {(this.props.winners.length==1)?<Text style={{fontSize:20, fontWeight: 'bold'}}> Judge {this.props.judge} chose {this.props.winners[0]}'s meme!
-          </Text> : <Text style={{fontSize:20, fontWeight: 'bold'}}>
+      <View style={{flex: 1, backgroundColor: '#fff', alignItems: 'center', justifyContent:'space-between', display:'flex', width:'100%'}}>
+        <View style={{flex: 2, display:'flex', justifyContent:'center', alignItems:'center', margin:10}}>
+          {(this.props.winners.length==1)?<Text style={{fontSize:20, fontWeight: 'bold', textAlign:'center' }}> Judge {this.props.judge} chose {this.props.winners[0]}'s meme!
+          </Text> : <Text style={{fontSize:20, fontWeight: 'bold', textAlign:'center',}}>
             Judge {this.props.judge} chose {this.props.winners[0]}'s and {this.props.winners[1]}'s meme!
           </Text>}
         </View>
-        <View style={{marginBottom:0, borderWidth:2, display:'flex', justifyContent:'center', flex:3}}>
-          <Text style={{fontSize:25, textAlign:'left', marginLeft:10}}>
-            {this.props.concept}
-          </Text>
-          <Image source={{uri:this.props.winningImage}}
-            style={{height: 200, width:300, alignSelf:'center', }}
-          />
+        <View style={{marginBottom:0, borderWidth:2, display:'flex', justifyContent:'space-between', flex:12, marginLeft:30, marginRight:30}}>
+          <View>
+            <Text style={{fontSize:25, textAlign:'left', marginLeft:10}}>
+              {this.props.concept}
+            </Text>
+          </View>
+          <View style={{flex:7, display:'flex'}}>
+            <Image source={{uri:this.props.winningImage}}
+              style={{height:'100%', width:'100%', alignSelf:'center'}}
+              resizeMode='stretch'
+            />
+          </View>
         </View>
-        <View style={{marginBottom:0, display:'flex', justifyContent:'center', flex:2}}>
-          <Text style={{fontSize:20, fontWeight: 'bold', alignSelf:'center'}}>
-            ScoreBoard
-          </Text>
-          {this.props.allScores.map(scoreObj => {
+        <View style={{marginBottom:0, display:'flex', justifyContent:'center', width:'100%', flex:8, marginTop:20}}>
+          <View style={{borderTopWidth:2, width:'100%', justifyContent:'center', alignItems:'center'}}>
+          </View>
+            <Text style={{fontSize:20, fontWeight: 'bold', alignSelf:'center', backgroundColor:'red', color:'white', width:'100%', textAlign:'center'}}>
+              ScoreBoard
+            </Text>
+          <ListView style={{flexGrow:0, backgroundColor: "black", padding:2, display: "flex", width:'100%'}}
+            dataSource={this.state.dataSource}
+            renderRow={(rowData) =>
+              <View style={{justifyContent:'center', alignItems:'center', backgroundColor:'lightblue', width:'100%'}}>
+                <Text style={{color:'black', fontSize:20, fontWeight:'bold'}}>{rowData.username}:{rowData.score}</Text>
+              </View>
+              }
+          />
+          {/* {this.props.allScores.map(scoreObj => {
             return <Text key={scoreObj.username}>{scoreObj.username}:{scoreObj.score}</Text>
-          })}
+          })} */}
         </View>
       </View>
     )
@@ -277,15 +295,15 @@ class Between extends React.Component {
 
   componentDidMount(){
     console.log("Does Mounting Only Happen Once in Round 1?")
-    this.props.socket.emit('between')
-    this.props.socket.on('betweened', (data) => {
-      console.log(data)
-      var cardsPlayed = []
-      data.forEach(function(item){
-        cardsPlayed.unshift(item.image)
-      })
-      this.setState({cardsPlayed: cardsPlayed})
-    })
+    // this.props.socket.emit('between')
+    // this.props.socket.on('betweened', (data) => {
+    //   console.log(data)
+    //   var cardsPlayed = []
+    //   data.forEach(function(item){
+    //     cardsPlayed.unshift(item.image)
+    //   })
+    //   this.setState({cardsPlayed: cardsPlayed})
+    // }) ////////setback
     //on between: expect past played cards
     this.props.socket.on('cardPlayed', (data) => {
       console.log(data);
@@ -308,19 +326,20 @@ class Between extends React.Component {
   render() {
     return (
       <View style={{flex: 1, backgroundColor: '#fff', alignItems: 'center', justifyContent:'space-between'}}>
-        <View style={{flex:1, alignItems:'center'}}>
-          <Text style={{margin:80, fontSize:20, fontWeight:'bold'}}>
+        <View style={{flex:1, alignItems:'center', justifyContent:'space-around'}}>
+          <Text style={{fontSize:20, fontWeight:'bold', color:'red'}}>
             The Judge is Deliberating
           </Text>
+          <Image source={require('./images/judge.png')} style={{height:100, width:100}}/>
           <Text style={{fontSize:20}}>
             Submissions Below
           </Text>
         </View>
-        <View style={{height:'60%', marginBottom:0, marginTop:10, borderTopWidth:2}}>
-          <Text style={{fontSize:30, textAlign:'left', marginLeft:10}}>
+        <View style={{flex:2, marginBottom:0, borderTopWidth:2}}>
+          <Text style={{fontSize:25, textAlign:'left', marginLeft:10}}>
             {this.props.concept}
           </Text>
-          <ImageSlider images={this.state.cardsPlayed}/>
+          <ImageSlider images={this.state.cardsPlayed} resizeMode='stretch'/>
         </View>
       </View>
     )
@@ -345,6 +364,8 @@ class Between extends React.Component {
     // )
   }
 }
+
+
 
 class Player extends React.Component {
 
@@ -369,19 +390,20 @@ class Player extends React.Component {
     console.log(this.props.deck)
     return (
       <View style={{flex: 1, backgroundColor: '#fff', alignItems: 'center', justifyContent:'space-between'}}>
-        <View style={{flex:1, alignItems:'center'}}>
-          <Text style={{margin:30, fontSize:20}}>
+        <View style={{flex:1, alignItems:'center', justifyContent:'space-around'}}>
+          <Text style={{fontSize:20, fontWeight:'bold', color:'blue'}}>
             Make your best Meme!
           </Text>
-          <Text style={{fontSize:15, fontWeight:'bold', color:'green', paddingLeft:20, paddingRight:20, paddingTop:15}}>
+          <Image source={require('./images/player.png')} style={{height:100, width:100}}/>
+          <Text style={{fontSize:15, fontWeight:'bold', color:'green', textAlign:'center', paddingLeft:10, paddingRight:10}}>
             Swipe through your deck and tap the image you'd like to submit below.
           </Text>
         </View>
-        <View style={{height:'60%', marginBottom:0, marginTop:10, borderTopWidth:2}}>
-          <Text style={{fontSize:30, textAlign:'left', marginLeft:10}}>
+        <View style={{flex:2, borderTopWidth:2}}>
+          <Text style={{fontSize:25, textAlign:'left', marginLeft:10}}>
             {this.props.concept}
           </Text>
-            <ImageSlider images={this.props.deck} onPress={(img)=>this.selectImage(img)}/>
+            <ImageSlider images={this.props.deck} onPress={(img)=>this.selectImage(img)} resizeMode='stretch'/>
         </View>
       </View>
     )
@@ -427,22 +449,41 @@ class Judge extends React.Component {
     console.log('submissions: ', this.state.submissions)
     return (
       <View style={{flex: 1, backgroundColor: '#fff', alignItems: 'center', justifyContent:'space-between'}}>
-        <View style={{flex:1, alignItems:'center'}}>
-          <Text style={{margin:60, fontSize:20}}>
-            You are the judge this round. Judge the memes!
+        <View style={{flex:1, alignItems:'center', justifyContent:'space-around'}}>
+          <Text style={{fontSize:20, fontWeight:'bold', textAlign:'center', paddingLeft:10, paddingRight:10}}>
+            You are the judge this round!
           </Text>
-          <View>
-            {(this.state.submissions.length<this.props.expectedSubmits) ? <Text style={{fontSize:15, fontWeight:'bold', color:'red'}}>Still waiting for {this.props.expectedSubmits - this.state.submissions.length} submissions. </Text>: <Text style={{fontSize:15, fontWeight:'bold', color:'green'}}>Choose your favorite meme!</Text>}
-          </View>
+          <Image source={require('./images/judge.png')} style={{height:100, width:100}}/>
+            {(this.state.submissions.length<this.props.expectedSubmits) ? <Text style={{fontSize:15, fontWeight:'bold', color:'red'}}>Still waiting for {this.props.expectedSubmits - this.state.submissions.length} submissions. </Text>: <Text style={{fontSize:20, fontWeight:'bold', color:'green'}}>Choose your favorite meme!</Text>}
         </View>
-        <View style={{height:'60%', marginBottom:0, marginTop:10, borderTopWidth:2}}>
-          <Text style={{fontSize:30, textAlign:'left', marginLeft:10}}>
+        <View style={{flex:2, borderTopWidth:2}}>
+          <Text style={{fontSize:25, textAlign:'left', marginLeft:10}}>
             {this.props.concept}
           </Text>
-            {(this.state.submissions.length>0)?<ImageSlider images={this.state.submissions} onPress={(img)=>this.selectImage(img)}/> :<Text style={{fontSize:20, marginTop:50, alignSelf:'center'}}>...waiting for submissions...</Text>}
+            {(this.state.submissions.length>0)?<ImageSlider images={this.state.submissions} onPress={(img)=>this.selectImage(img)} resizeMode='stretch'/> :<Text style={{fontSize:20, marginTop:50, alignSelf:'center', fontStyle:'italic'}}>...waiting for submissions...</Text>}
         </View>
       </View>
     )
+
+    // return (
+    //   <View style={{flex: 1, backgroundColor: '#fff', alignItems: 'center', justifyContent:'space-between'}}>
+    //     <View style={{flex:1, alignItems:'center', justifyContent:'space-around'}}>
+    //       <Text style={{fontSize:20, fontWeight:'bold', color:'blue'}}>
+    //         Make your best Meme!
+    //       </Text>
+    //       <Image source={require('./images/player.png')} style={{height:100, width:100}}/>
+    //       <Text style={{fontSize:15, fontWeight:'bold', color:'green', textAlign:'center', paddingLeft:10, paddingRight:10}}>
+    //         Swipe through your deck and tap the image you'd like to submit below.
+    //       </Text>
+    //     </View>
+    //     <View style={{flex:2, borderTopWidth:2}}>
+    //       <Text style={{fontSize:25, textAlign:'left', marginLeft:10}}>
+    //         {this.props.concept}
+    //       </Text>
+    //         <ImageSlider images={this.props.deck} onPress={(img)=>this.selectImage(img)} resizeMode='stretch'/>
+    //     </View>
+    //   </View>
+    // )
 
     // return (
     //   <View style={{flex: 1, backgroundColor: '#fff', alignItems: 'center', justifyContent:'space-between'}}>
@@ -510,11 +551,14 @@ class Judge extends React.Component {
 class Header extends React.Component{
   render(){
     return(
-      <View style={{marginTop:40, display:'flex', flexDirection:'column', justifyContent:'space-around'}}>
-        <Text style={{fontWeight: 'bold', alignSelf:'center'}}>{this.props.username}</Text>
-        <View style={{flexDirection: 'row', justifyContent:'space-evenly', backgroundColor: 'beige', marginTop: 10, borderRadius: 3, padding: 5}}>
-          <Text style={{color:'red', marginRight:6}}>Score: {this.props.score}</Text>
-          <Text style={{color: 'blue', marginLeft:6}}>Round: {this.props.round}</Text>
+      <View style={{marginTop:30, display:'flex', justifyContent:'space-around', width:'100%'}}>
+        <View style={{borderBottomWidth:.5,  width:'100%', alignItems:'center',}}>
+          <Image source={require('./images/logo-banner.jpg')} style={{height:30, width:250, padding:20}}/>
+        </View>
+        <View style={{flexDirection: 'row', justifyContent:'space-evenly', backgroundColor: 'beige',  padding: 5, alignItems:'center', width:'100%'}}>
+          <Text style={{color:'red', marginRight:6, fontSize:20, fontWeight:'bold'}}>Score: {this.props.score}</Text>
+          <Text numberOfLines={1} style={{fontWeight: 'bold',}}>{this.props.username}</Text>
+          <Text style={{color: 'blue', marginLeft:6, fontSize:20, fontWeight:'bold'}}>Round: {this.props.round}</Text>
         </View>
       </View>
     )
@@ -527,5 +571,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
+    width:'100%'
   }
 });
