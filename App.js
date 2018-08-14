@@ -6,7 +6,7 @@ import io from 'socket.io-client';
 export default class App extends React.Component {
   constructor(props){
     super(props);
-    this.socket = io('https://damp-eyrie-10512.herokuapp.com/'); //'https://damp-eyrie-10512.herokuapp.com/'
+    this.socket = io('http://10.1.10.129:3000')//io('https://damp-eyrie-10512.herokuapp.com/'); //'https://damp-eyrie-10512.herokuapp.com/'
     this.state = {
       username:'', //>>>
       // 'Li'+"Min"+((new Date()).toISOString().slice(14,19).replace(/:/g,"_"))+"RAND"+String(Math.floor(Math.random()*100000)),
@@ -141,6 +141,21 @@ class Game extends React.Component {
         this.setState({turnMode:'Player', concept:data.concept})
       }
     })
+    this.props.socket.on('judgeLeft', (username) => {
+      console.log('judge left username:', username)
+      var index = this.state.opponents.indexOf(username)
+      var newOpponents = this.state.opponents.slice()
+      newOpponents.splice(index, 1)
+      this.setState({turnMode:'JudgeLeft', opponents:newOpponents})
+
+    })
+    this.props.socket.on('playerLeft', (username) => {
+      console.log('player left username:', username)
+      var index = this.state.opponents.indexOf(username)
+      var newOpponents = this.state.opponents.slice()
+      newOpponents.splice(index, 1)
+      this.setState({opponents:newOpponents})
+    })
 
     // on concept: receive current concept
     console.log('Entered Game')
@@ -185,7 +200,7 @@ class Game extends React.Component {
     } else if(this.state.turnMode==='Judge') {
       return (
         <View style={styles.container}>
-          <Header username={this.props.username} score={this.state.myScore} round={this.state.round}/>
+          <Header username={this.props.username} score={this.state.myScore} round={this.state.round} />
           {/* <View style={{marginTop:30, display:'flex', flexDirection:'row', justifyContent:'space-around'}}>
             <Text>{this.props.username}{"\n"}
             Score: {this.state.myScore}
@@ -202,13 +217,27 @@ class Game extends React.Component {
           winners={this.state.winners} winningImage={this.state.winningImage} judge={this.state.winningJudge}/>
       </View>
     )
-    } else {
+  } else if(this.state.turnMode==="JudgeLeft"){
+    return(
+      <JudgeLeft></JudgeLeft>
+    )
+  } else {
       return (
         <View style={{flex:1, display:'flex', justifyContent:'center', alignItems:'center'}}>
           <Text>Loading</Text>
         </View>
       )
     }
+  }
+}
+
+class JudgeLeft extends React.Component {
+  render(){
+    return(
+      <View style={{display:'flex', alignItems:'center', justifyContent:'center', flex:1}}>
+        <Text>The Judge left game. Restarting momentarily.</Text>
+      </View>
+    )
   }
 }
 
@@ -298,16 +327,16 @@ class Between extends React.Component {
   componentDidMount(){
     console.log("Does Mounting Only Happen Once in Round 1?")
     console.log('playedCard:', this.props.playedCard)
-    this.setState({cardsPlayed:[this.props.playedCard].concat(this.state.cardsPlayed)})
-    // this.props.socket.emit('between')
-    // this.props.socket.on('betweened', (data) => {
-    //   console.log(data)
-    //   var cardsPlayed = []
-    //   data.forEach(function(item){
-    //     cardsPlayed.unshift(item.image)
-    //   })
-    //   this.setState({cardsPlayed: cardsPlayed})
-    // }) ////////setback
+    //this.setState({cardsPlayed:[this.props.playedCard].concat(this.state.cardsPlayed)})
+    this.props.socket.emit('between')
+    this.props.socket.on('betweened', (data) => {
+      console.log('betweened data:', data)
+      var cardsPlayed = []
+      data.forEach(function(item){
+        cardsPlayed.unshift(item.image)
+      })
+      this.setState({cardsPlayed:cardsPlayed})
+    }) ////////setback
     //on between: expect past played cards
     this.props.socket.on('cardPlayed', (data) => {
       console.log('card played:', data);
